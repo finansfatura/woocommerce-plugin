@@ -1,0 +1,21 @@
+{
+    "name": "finansfatura/woocommerce-plugin",
+    "description": "WooCommerce eklentisi — sipariş tamamlandığında Finansfatura üzerinden e-Arşiv / e-Fatura keser.",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^9.5",
+        "brain/monkey": "^2.6"
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Finansfatura\\Woo\\Tests\\": "tests/"
+        }
+    }
+}
