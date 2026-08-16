@@ -45,6 +45,7 @@ if (!class_exists('WC_Abstract_Order')) {
         /** @var array<int,WC_Order_Item> */
         public array $items = [];
         public float $total = 0.0;
+        public float $total_tax = 0.0;
         public float $discount = 0.0;
         public string $currency = 'TRY';
 
@@ -59,6 +60,7 @@ if (!class_exists('WC_Abstract_Order')) {
         /** @param array<int,string>|string $types */
         public function get_items($types = 'line_item'): array { return $this->items; }
         public function get_total(): float { return $this->total; }
+        public function get_total_tax(): float { return $this->total_tax; }
         public function get_total_discount(): float { return $this->discount; }
         public function get_currency(): string { return $this->currency; }
     }

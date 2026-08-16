@@ -114,6 +114,13 @@ class FF_Invoice_Mapper
             ];
         }
 
+        // A refund entered as an amount rather than per item carries no lines
+        // at all — the common case for "give the customer 50 TL back". An
+        // IADE with zero lines is rejected, so it becomes one line.
+        if ($refund && $lines === []) {
+            $lines[] = self::amount_only_line($refund);
+        }
+
         $opts = [
             'transactionHeaderId' => $transaction_id,
             'invoiceTypeCode'     => $refund ? 'IADE' : 'SATIS',
@@ -135,6 +142,28 @@ class FF_Invoice_Mapper
     public static function idempotency_key(WC_Order $order, ?WC_Order_Refund $refund = null): string
     {
         return self::external_id($order) . '_' . ($refund ? (int) $refund->get_id() : 0);
+    }
+
+    /**
+     * One KDV-exclusive line standing in for a line-less refund. The tax the
+     * refund itself records is what sets the rate; a refund entered with no
+     * tax is invoiced at 0%.
+     *
+     * @return array<string,mixed>
+     */
+    private static function amount_only_line(WC_Order_Refund $refund): array
+    {
+        $gross = abs((float) $refund->get_total());
+        $tax   = abs((float) $refund->get_total_tax());
+        $net   = round($gross - $tax, 2);
+
+        return [
+            'title'      => __('İade', 'finansfatura-woo'),
+            'qty'        => 1,
+            'unit_price' => $net,
+            'unit_code'  => 'C62',
+            'vat_rate'   => $net > 0 ? round($tax / $net, 4) : 0.0,
+        ];
     }
 
     /** @return array<string,string> */

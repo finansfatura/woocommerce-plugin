@@ -127,6 +127,23 @@ class MapperTest extends TestCase
         self::assertSame(60.0, $canon['Totals']['GrandTotal']);
     }
 
+    public function test_amount_only_refund_still_has_a_line(): void
+    {
+        // WooCommerce'de "50 TL iade et" satır seçmeden yapılır; satırsız IADE
+        // reddedilir.
+        $refund = new WC_Order_Refund();
+        $refund->id = 9002;
+        $refund->total = -60.0;
+        $refund->total_tax = -10.0;
+
+        $canon = FF_Invoice_Mapper::invoice($this->order(), $refund, '')['canonical'];
+
+        self::assertCount(1, $canon['Lines']);
+        self::assertSame(50.0, $canon['Lines'][0]['UnitPrice']);
+        self::assertSame(0.2, $canon['Lines'][0]['VatRate']);
+        self::assertSame(60.0, $canon['Totals']['GrandTotal']);
+    }
+
     public function test_refund_is_not_attached_to_the_sale(): void
     {
         $payload = FF_Invoice_Mapper::invoice($this->order(), new WC_Order_Refund(), '');
