@@ -1,0 +1,10 @@
+# The runtime dependency IS committed: WordPress plugins are installed as a
+# zip and merchants cannot run composer on shared hosting, so a repo download
+# has to be ready to activate. Dev tooling (phpunit and friends) is not — it
+# lands in vendor/ too, hence the whitelist rather than a plain "vendor/".
+/vendor/*
+!/vendor/autoload.php
+!/vendor/composer/
+!/vendor/finansfatura/
+
+.phpunit.result.cache

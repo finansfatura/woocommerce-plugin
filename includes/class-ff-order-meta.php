@@ -14,9 +14,14 @@ class FF_Order_Meta
     public const TCKN               = '_ff_tckn';
     public const VKN                = '_ff_vkn';
     public const TAX_OFFICE         = '_ff_tax_office';
-    public const EFATURA_MUKELLEFI  = '_ff_efatura_mukellefi';   // "yes" | "no"
 
+    // Step 1: the sale. Its presence is what keeps a second push from
+    // creating a second sale, and what the invoice hangs off.
+    public const TRANSACTION_ID     = '_ff_transaction_id';
+
+    // Step 2: the document.
     public const INVOICE_ID         = '_ff_invoice_id';
+    public const INVOICE_NUMBER     = '_ff_invoice_number';
     public const ETTN               = '_ff_ettn';
     public const PDF_URL            = '_ff_pdf_url';
     public const STATUS             = '_ff_status';

@@ -47,18 +47,20 @@ class FF_Activator
     private static function seed_defaults(): void
     {
         $existing = get_option(FF_OPTION_KEY, []);
+        // No issuer fields: the seller identity comes from the company profile
+        // on the Finansfatura side, and sending our own would only let the two
+        // drift apart.
         $defaults = [
-            'api_key'                  => '',
-            'base_url'                 => 'https://api.finansfatura.com',
-            'default_doc_type'         => 'EARSIV',
-            'auto_issue_on_complete'   => 'yes',
-            'auto_issue_iade_on_refund'=> 'yes',
-            'issuer_vkn'               => '',
-            'issuer_title'             => '',
-            'issuer_address'           => '',
-            'issuer_tax_office'        => '',
-            'issuer_email'             => '',
-            'issuer_phone'             => '',
+            'auth_mode'                 => 'api_key',
+            'api_key'                   => '',
+            'oauth_client_id'           => '',
+            'oauth_client_secret'       => '',
+            // Literal, not Client::DEFAULT_BASE_URL: activation runs before
+            // our plugins_loaded hook pulls in the Composer autoloader.
+            'base_url'                  => 'https://api.finansfatura.com',
+            'auto_sale'                 => 'yes',
+            'auto_invoice'              => 'yes',
+            'auto_issue_iade_on_refund' => 'yes',
         ];
         update_option(FF_OPTION_KEY, wp_parse_args($existing, $defaults));
     }

@@ -2,10 +2,10 @@
 /**
  * Plugin Name:       Finansfatura for WooCommerce
  * Plugin URI:        https://finansfatura.com/woocommerce
- * Description:       Issues Turkish e-Arşiv / e-Fatura invoices through the Finansfatura API when WooCommerce orders complete or get refunded.
- * Version:           0.1.0
+ * Description:       WooCommerce siparişlerini önce Finansfatura satışına çevirir, ardından e-Arşiv / e-Fatura keser.
+ * Version:           1.0.0
  * Requires at least: 6.0
- * Requires PHP:      7.4
+ * Requires PHP:      8.1
  * Requires Plugins:  woocommerce
  * Author:            Finansfatura
  * License:           GPL-2.0-or-later
@@ -16,11 +16,12 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('FF_PLUGIN_VERSION', '0.1.0');
+define('FF_PLUGIN_VERSION', '1.0.0');
 define('FF_PLUGIN_FILE', __FILE__);
 define('FF_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('FF_PLUGIN_URL', plugin_dir_url(__FILE__));
 define('FF_OPTION_KEY', 'ff_settings');
+define('FF_TOKEN_OPTION_KEY', 'ff_oauth_tokens');
 define('FF_LOG_TABLE', 'ff_invoice_log');
 
 spl_autoload_register(function ($class) {
@@ -52,9 +53,23 @@ add_action('plugins_loaded', function () {
     if (!class_exists('WooCommerce')) {
         return;
     }
+    // The API client, the payload builders and the OAuth flow all come from the
+    // finansfatura/finansfatura package. A zip built without `composer install`
+    // has no vendor dir — say so instead of fataling on a missing class.
+    if (!file_exists(FF_PLUGIN_DIR . 'vendor/autoload.php')) {
+        add_action('admin_notices', function () {
+            echo '<div class="notice notice-error"><p>' .
+                esc_html__('Finansfatura: vendor/ dizini eksik. Eklenti dizininde "composer install --no-dev" çalıştırın.', 'finansfatura-woo') .
+                '</p></div>';
+        });
+        return;
+    }
+    require_once FF_PLUGIN_DIR . 'vendor/autoload.php';
+
     load_plugin_textdomain('finansfatura-woo', false, dirname(plugin_basename(__FILE__)) . '/languages');
 
     FF_Settings::boot();
+    FF_OAuth::boot();
     FF_Checkout_Fields::boot();
     FF_Order_Hooks::boot();
 });

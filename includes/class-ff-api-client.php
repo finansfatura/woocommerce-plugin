@@ -3,137 +3,167 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
+use Finansfatura\Client;
+use Finansfatura\FinansfaturaException;
+
 /**
- * Thin HTTP client around wp_remote_post / wp_remote_get. Adds the
- * X-Api-Key + Idempotency-Key headers, JSON-encodes the body, and surfaces
- * upstream errors as WP_Error. Every issuance call also gets logged so a
- * merchant can debug failures without SSH access.
+ * WordPress adapter around the finansfatura/finansfatura package.
+ *
+ * The package owns the endpoints, the payload casing and the error taxonomy;
+ * this class only does what WordPress insists on:
+ *   - HTTP through wp_remote_request (proxies, SSL config, WP HTTP filters),
+ *   - auth from the settings screen (API key or OAuth access token),
+ *   - exceptions turned into WP_Error, carrying `retryable` so the caller
+ *     knows whether a retry is worth scheduling.
  */
 class FF_Api_Client
 {
-    private string $base_url;
-    private string $api_key;
+    private ?Client $client = null;
+    private ?WP_Error $init_error = null;
 
     public function __construct()
     {
-        $opts = get_option(FF_OPTION_KEY, []);
-        $this->base_url = rtrim((string) ($opts['base_url'] ?? 'https://api.finansfatura.com'), '/');
-        $this->api_key  = (string) ($opts['api_key'] ?? '');
+        try {
+            $this->client = self::build();
+        } catch (\Throwable $e) {
+            $this->init_error = new WP_Error('ff_not_configured', $e->getMessage());
+        }
     }
 
     public function is_configured(): bool
     {
-        return $this->api_key !== '' && $this->base_url !== '';
-    }
-
-    public function health()
-    {
-        $url = $this->base_url . '/v1/invoicing/health';
-        $resp = wp_remote_get($url, [
-            'timeout' => 10,
-            'headers' => $this->default_headers(),
-        ]);
-        if (is_wp_error($resp)) {
-            return $resp;
-        }
-        $code = wp_remote_retrieve_response_code($resp);
-        if ($code < 200 || $code >= 300) {
-            return new WP_Error('ff_health_failed', sprintf(__('Sağlık kontrolü %d döndü', 'finansfatura-woo'), $code));
-        }
-        return json_decode(wp_remote_retrieve_body($resp), true);
+        return $this->client !== null;
     }
 
     /**
-     * Issue a single invoice. Returns the parsed JSON body on success, WP_Error
-     * on failure. Caller is responsible for logging + retry scheduling.
+     * Step 1 — the sale. Feeds turnover, current account and stock, and
+     * survives a failed invoice attempt, so it always runs first.
+     *
+     * @return array|WP_Error
+     */
+    public function create_sale(array $order)
+    {
+        return $this->call(fn(Client $c) => $c->createOrder($order));
+    }
+
+    /**
+     * Step 2 — the document. `$payload` carries the sale's transaction id so
+     * the invoice is attached to it.
+     *
+     * @return array|WP_Error
      */
     public function issue(array $payload, string $idempotency_key)
     {
-        if (!$this->is_configured()) {
-            return new WP_Error('ff_not_configured', __('Finansfatura API anahtarı veya URL ayarlı değil.', 'finansfatura-woo'));
-        }
-        $url = $this->base_url . '/v1/invoicing/invoices';
-        $body = wp_json_encode($payload);
-
-        $resp = wp_remote_post($url, [
-            'timeout' => 25,
-            'headers' => array_merge($this->default_headers(), [
-                'Content-Type'    => 'application/json',
-                'Idempotency-Key' => $idempotency_key,
-            ]),
-            'body' => $body,
-        ]);
-
-        $log = [
-            'payload'         => $body,
-            'idempotency_key' => $idempotency_key,
-        ];
-
-        if (is_wp_error($resp)) {
-            $log['error'] = $resp->get_error_message();
-            FF_Logger::write($log);
-            return $resp;
-        }
-
-        $code = wp_remote_retrieve_response_code($resp);
-        $raw  = wp_remote_retrieve_body($resp);
-        $log['status'] = $code;
-        $log['body']   = $raw;
-
-        if ($code < 200 || $code >= 300) {
-            $msg = sprintf(__('Finansfatura %d döndü', 'finansfatura-woo'), $code);
-            $decoded = json_decode($raw, true);
-            if (is_array($decoded) && !empty($decoded['message'])) {
-                $msg .= ': ' . $decoded['message'];
-            }
-            FF_Logger::write($log);
-            return new WP_Error('ff_issue_failed', $msg, ['status' => $code, 'response' => $raw]);
-        }
-
-        FF_Logger::write($log);
-        return json_decode($raw, true);
+        return $this->call(fn(Client $c) => $c->issueInvoice($payload, $idempotency_key));
     }
 
     /**
-     * Download the rendered invoice (PDF/HTML/XML) for the given invoice id.
-     * Returns ['body' => binary, 'content_type' => string, 'filename' => string]
-     * on success or a WP_Error on failure.
+     * Bulk status by our own order ids. This is where the invoice NUMBER
+     * shows up — the issue response never carries it.
+     *
+     * @param array<int,string> $external_ids
+     * @return array|WP_Error
      */
-    public function download(string $invoice_id, string $format = 'pdf')
+    public function order_status(array $external_ids)
     {
-        if (!$this->is_configured()) {
-            return new WP_Error('ff_not_configured', __('Finansfatura API anahtarı veya URL ayarlı değil.', 'finansfatura-woo'));
-        }
-        $url = $this->base_url . '/v1/invoicing/invoices/' . rawurlencode($invoice_id) . '/download?format=' . rawurlencode($format);
-        $resp = wp_remote_get($url, [
-            'timeout' => 30,
-            'headers' => $this->default_headers(),
-        ]);
-        if (is_wp_error($resp)) {
-            return $resp;
-        }
-        $code = wp_remote_retrieve_response_code($resp);
-        if ($code < 200 || $code >= 300) {
-            return new WP_Error('ff_download_failed', sprintf(__('Fatura indirilemedi (%d)', 'finansfatura-woo'), $code));
-        }
-        $disposition = (string) wp_remote_retrieve_header($resp, 'content-disposition');
-        $filename = $invoice_id . '.' . $format;
-        if (preg_match('/filename="?([^";]+)"?/i', $disposition, $m)) {
-            $filename = $m[1];
-        }
-        return [
-            'body'         => wp_remote_retrieve_body($resp),
-            'content_type' => (string) (wp_remote_retrieve_header($resp, 'content-type') ?: 'application/octet-stream'),
-            'filename'     => $filename,
-        ];
+        return $this->call(fn(Client $c) => $c->orderStatus(FF_Invoice_Mapper::PROVIDER, $external_ids));
     }
 
-    private function default_headers(): array
+    /** @return string|WP_Error raw document bytes */
+    public function download(string $invoice_id, string $format = 'pdf')
     {
-        return [
-            'Accept'    => 'application/json',
-            'X-Api-Key' => $this->api_key,
-            'User-Agent'=> 'finansfatura-woo/' . FF_PLUGIN_VERSION . '; ' . home_url(),
-        ];
+        return $this->call(fn(Client $c) => $c->download($invoice_id, $format));
+    }
+
+    /**
+     * Cheapest call that proves key + scope + reachability, used by the
+     * "Bağlantıyı test et" button.
+     *
+     * @return array|WP_Error
+     */
+    public function ping()
+    {
+        return $this->call(fn(Client $c) => $c->listInvoices(1, 1));
+    }
+
+    /**
+     * @param callable(Client):mixed $fn
+     * @return mixed|WP_Error
+     */
+    private function call(callable $fn)
+    {
+        if ($this->client === null) {
+            return $this->init_error ?? new WP_Error('ff_not_configured', __('Finansfatura bağlantısı ayarlı değil.', 'finansfatura-woo'));
+        }
+        try {
+            return $fn($this->client);
+        } catch (FinansfaturaException $e) {
+            return new WP_Error('ff_api_error', self::message($e), [
+                'status'    => $e->status,
+                'retryable' => $e->retryable,
+                'body'      => $e->body,
+            ]);
+        } catch (\Throwable $e) {
+            return new WP_Error('ff_api_error', $e->getMessage(), ['retryable' => false]);
+        }
+    }
+
+    /** Prefer the API's own message; fall back to the exception text. */
+    private static function message(FinansfaturaException $e): string
+    {
+        if (is_array($e->body)) {
+            foreach (['message', 'error_description', 'error'] as $k) {
+                if (!empty($e->body[$k]) && is_string($e->body[$k])) {
+                    return $e->body[$k];
+                }
+            }
+        }
+        return $e->getMessage();
+    }
+
+    private static function build(): Client
+    {
+        $base = rtrim(FF_Settings::get('base_url', Client::DEFAULT_BASE_URL), '/');
+
+        // OAuth mode refreshes the token here when it is about to expire; the
+        // exception it throws lands in init_error like a missing API key.
+        $auth = FF_Settings::get('auth_mode', 'api_key') === 'oauth'
+            ? ['accessToken' => FF_OAuth::access_token()]
+            : ['apiKey' => trim(FF_Settings::get('api_key'))];
+        if (current($auth) === '') {
+            throw new \RuntimeException(__('Finansfatura API anahtarı girilmedi.', 'finansfatura-woo'));
+        }
+
+        return new Client($auth + [
+            'baseUrl'   => $base,
+            'transport' => self::transport(),
+        ]);
+    }
+
+    /**
+     * WP HTTP API as the package's transport. WordPress routes proxies, pinned
+     * CAs and request filters through wp_remote_*; the package's own curl
+     * handle would miss all of it.
+     *
+     * @return callable(string,string,array<string,string>,?string):array{status:int,body:string}
+     */
+    public static function transport(): callable
+    {
+        return function (string $method, string $url, array $headers, ?string $body): array {
+            $resp = wp_remote_request($url, [
+                'method'  => $method,
+                'timeout' => 30,
+                'headers' => $headers,
+                'body'    => $body,
+            ]);
+            if (is_wp_error($resp)) {
+                // ProviderException is the package's retryable transport error.
+                throw new \Finansfatura\ProviderException(0, null, $resp->get_error_message());
+            }
+            return [
+                'status' => (int) wp_remote_retrieve_response_code($resp),
+                'body'   => (string) wp_remote_retrieve_body($resp),
+            ];
+        };
     }
 }

@@ -5,95 +5,151 @@ namespace Finansfatura\Woo\Tests;
 use PHPUnit\Framework\TestCase;
 use WC_Order;
 use WC_Order_Item_Product;
+use WC_Order_Item_Shipping;
 use WC_Order_Refund;
 use FF_Invoice_Mapper;
 use FF_Order_Meta;
 
+/**
+ * The two payloads use opposite conventions — the sale is KDV-inclusive with a
+ * percentage rate, the invoice KDV-exclusive with a ratio. Every assertion
+ * here exists to catch them being swapped.
+ */
 class MapperTest extends TestCase
 {
-    private function build_item(string $name, string $sku, float $qty, float $subtotal, float $tax): WC_Order_Item_Product
+    private function item(string $name, string $sku, float $qty, float $subtotal, float $tax, ?float $total = null): WC_Order_Item_Product
     {
         $item = new WC_Order_Item_Product();
+        $item->id = 1;
         $item->name = $name;
         $item->quantity = $qty;
         $item->subtotal = $subtotal;
         $item->subtotal_tax = $tax;
+        // Undiscounted line: total == subtotal.
+        $item->total = $total ?? $subtotal;
+        $item->total_tax = $total === null ? $tax : round($total * ($tax / $subtotal), 2);
         $item->product = new class($sku) {
-            public string $sku;
-            public function __construct(string $sku) { $this->sku = $sku; }
+            public function __construct(public string $sku) {}
             public function get_sku(): string { return $this->sku; }
         };
         return $item;
     }
 
-    public function test_bireysel_satis_yields_earsiv(): void
+    private function order(int $id = 101): WC_Order
     {
         $order = new WC_Order();
-        $order->id = 101;
+        $order->id = $id;
         $order->billing_first_name = 'Ali';
         $order->billing_last_name = 'Veli';
         $order->billing_email = 'ali@example.test';
         $order->total = 120.0;
         FF_Order_Meta::set($order, FF_Order_Meta::RECIPIENT_TYPE, 'bireysel');
         FF_Order_Meta::set($order, FF_Order_Meta::TCKN, '12345678901');
-        $order->items = [$this->build_item('Ürün', 'SKU-1', 1, 100, 20)];
-
-        $payload = FF_Invoice_Mapper::from_order($order, null);
-
-        self::assertSame('EARSIV', $payload['document_type']);
-        self::assertSame('SATIS', $payload['canonical']['invoice_type_code']);
-        self::assertSame('12345678901', $payload['canonical']['recipient']['vkn_or_tckn']);
-        self::assertSame(100.0, $payload['canonical']['lines'][0]['unit_price']);
-        self::assertSame(0.2, $payload['canonical']['lines'][0]['vat_rate']);
-        self::assertSame(120.0, $payload['canonical']['totals']['grand_total']);
+        $order->items = [$this->item('Ürün', 'SKU-1', 1, 100, 20)];
+        return $order;
     }
 
-    public function test_kurumsal_mukellef_yields_efatura(): void
+    public function test_sale_is_vat_inclusive_with_percent_rate(): void
     {
-        $order = new WC_Order();
-        $order->id = 202;
-        $order->billing_company = 'Beta Ltd.';
-        $order->total = 1180.0;
-        FF_Order_Meta::set($order, FF_Order_Meta::RECIPIENT_TYPE, 'kurumsal');
-        FF_Order_Meta::set($order, FF_Order_Meta::VKN, '9876543210');
-        FF_Order_Meta::set($order, FF_Order_Meta::TAX_OFFICE, 'Kadıköy');
-        FF_Order_Meta::set($order, FF_Order_Meta::EFATURA_MUKELLEFI, 'yes');
-        $order->items = [$this->build_item('Hizmet', 'SVC-1', 1, 1000, 180)];
+        $sale = FF_Invoice_Mapper::sale($this->order());
 
-        $payload = FF_Invoice_Mapper::from_order($order, null);
+        self::assertSame('WOOCOMMERCE', $sale['provider']);
+        self::assertSame('PAID', $sale['payment_status']);
+        self::assertSame(120.0, $sale['lines'][0]['unit_price']);   // KDV dahil
+        self::assertSame(120.0, $sale['lines'][0]['total_price']);
+        self::assertSame(20.0, $sale['lines'][0]['vat_rate']);      // yüzde, oran değil
+        self::assertSame('12345678901', $sale['buyer']['tckn']);
+        self::assertSame('', $sale['buyer']['tax_number']);
+    }
 
-        self::assertSame('EFATURA', $payload['document_type']);
-        self::assertSame('9876543210', $payload['canonical']['recipient']['vkn_or_tckn']);
-        self::assertSame('Beta Ltd.', $payload['canonical']['recipient']['title']);
-        self::assertSame('Kadıköy', $payload['canonical']['recipient']['tax_office']);
+    public function test_sale_carries_the_coupon_discount(): void
+    {
+        $order = $this->order();
+        // 100 + 20 KDV listeden, 10 TL indirimle 90 + 18 ödendi.
+        $order->items = [$this->item('Ürün', 'SKU-1', 1, 100, 20, 90)];
+
+        $sale = FF_Invoice_Mapper::sale($order);
+
+        self::assertSame(120.0, $sale['lines'][0]['total_price']);
+        self::assertSame(12.0, $sale['lines'][0]['discount']);
+        self::assertSame(20.0, $sale['lines'][0]['vat_rate']);
+    }
+
+    public function test_invoice_is_vat_exclusive_with_ratio_and_pascal_case(): void
+    {
+        $payload = FF_Invoice_Mapper::invoice($this->order(), null, 'txn-1');
+
+        self::assertSame('EARSIV', $payload['document_type']);
+        self::assertSame('txn-1', $payload['transaction_header_id']);
+        // Inside `canonical` the API only reads PascalCase; snake_case is
+        // silently ignored, which is why the package builds this.
+        $canon = $payload['canonical'];
+        self::assertSame('SATIS', $canon['InvoiceTypeCode']);
+        self::assertSame('12345678901', $canon['Recipient']['VKNorTCKN']);
+        self::assertSame(100.0, $canon['Lines'][0]['UnitPrice']);   // KDV hariç
+        self::assertSame(0.2, $canon['Lines'][0]['VatRate']);       // oran, yüzde değil
+        self::assertSame(100.0, $canon['Totals']['SubtotalExclVAT']);
+        self::assertSame(20.0, $canon['Totals']['VatTotal']);
+        self::assertSame(120.0, $canon['Totals']['GrandTotal']);
+    }
+
+    public function test_shipping_is_invoiced_too(): void
+    {
+        $order = $this->order();
+        $shipping = new WC_Order_Item_Shipping();
+        $shipping->id = 2;
+        $shipping->name = 'Kargo';
+        $shipping->total = 50.0;
+        $shipping->total_tax = 10.0;
+        $order->items[] = $shipping;
+
+        $canon = FF_Invoice_Mapper::invoice($order, null, 'txn-1')['canonical'];
+
+        // Kargo satırı düşerse fatura, müşterinin ödediğinden az olur.
+        self::assertCount(2, $canon['Lines']);
+        self::assertSame(50.0, $canon['Lines'][1]['UnitPrice']);
+        self::assertSame(180.0, $canon['Totals']['GrandTotal']);
     }
 
     public function test_refund_yields_iade_with_positive_amounts(): void
     {
-        $order = new WC_Order();
-        $order->id = 303;
-        FF_Order_Meta::set($order, FF_Order_Meta::RECIPIENT_TYPE, 'bireysel');
-        FF_Order_Meta::set($order, FF_Order_Meta::TCKN, '12345678901');
+        $order = $this->order(303);
 
         $refund = new WC_Order_Refund();
         $refund->id = 9001;
         $refund->total = -60.0;
-        $refund->items = [$this->build_item('Ürün', 'SKU-1', -1, -50, -10)];
+        $refund->items = [$this->item('Ürün', 'SKU-1', -1, -50, -10)];
 
-        $payload = FF_Invoice_Mapper::from_order($order, $refund);
+        $canon = FF_Invoice_Mapper::invoice($order, $refund, '')['canonical'];
 
-        self::assertSame('IADE', $payload['canonical']['invoice_type_code']);
-        self::assertSame(1.0, $payload['canonical']['lines'][0]['quantity']);
-        self::assertSame(60.0, $payload['canonical']['totals']['grand_total']);
+        self::assertSame('IADE', $canon['InvoiceTypeCode']);
+        self::assertSame(1.0, $canon['Lines'][0]['Quantity']);
+        self::assertSame(60.0, $canon['Totals']['GrandTotal']);
     }
 
-    public function test_idempotency_key_is_deterministic(): void
+    public function test_refund_is_not_attached_to_the_sale(): void
     {
-        $order = new WC_Order();
-        $order->id = 42;
-        $a = FF_Invoice_Mapper::idempotency_key($order, null);
-        $b = FF_Invoice_Mapper::idempotency_key($order, null);
-        self::assertSame($a, $b);
-        self::assertStringStartsWith('wc_', $a);
+        $payload = FF_Invoice_Mapper::invoice($this->order(), new WC_Order_Refund(), '');
+
+        // Satışa bağlanırsa aynı satış iki kez sayılır.
+        self::assertArrayNotHasKey('transaction_header_id', $payload);
+    }
+
+    public function test_ids_are_deterministic_and_store_scoped(): void
+    {
+        $order = $this->order(42);
+
+        self::assertSame(FF_Invoice_Mapper::external_id($order), FF_Invoice_Mapper::external_id($order));
+        self::assertStringStartsWith('wc_', FF_Invoice_Mapper::external_id($order));
+        self::assertStringEndsWith('_42', FF_Invoice_Mapper::external_id($order));
+
+        $refund = new WC_Order_Refund();
+        $refund->id = 9001;
+
+        $key = FF_Invoice_Mapper::idempotency_key($order, null);
+        self::assertSame($key, FF_Invoice_Mapper::idempotency_key($order, null));
+        // İade ayrı bir belge: satışın anahtarını paylaşırsa API iade yerine
+        // satış faturasını tekrar döner.
+        self::assertNotSame($key, FF_Invoice_Mapper::idempotency_key($order, $refund));
     }
 }

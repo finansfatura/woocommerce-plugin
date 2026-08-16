@@ -8,7 +8,10 @@ if (!defined('ABSPATH')) {
  *   - Bireysel / Kurumsal seçimi
  *   - TCKN (11 hane) ya da VKN (10 hane)
  *   - Vergi dairesi
- *   - e-Fatura mükellefi flag (kurumsal alıcılar için EFATURA vs EARSIV)
+ *
+ * There is deliberately no "e-Fatura mükellefi" checkbox: the server looks the
+ * VKN up at GİB and upgrades the document itself, which beats asking a shopper
+ * a question they routinely get wrong.
  *
  * Validation is enforced server-side; the toggle on the storefront is purely
  * progressive enhancement.
@@ -66,12 +69,6 @@ class FF_Checkout_Fields
                 <label for="ff_tax_office"><?php esc_html_e('Vergi Dairesi', 'finansfatura-woo'); ?></label>
                 <input type="text" id="ff_tax_office" name="ff_tax_office" value="<?php echo esc_attr($checkout->get_value('ff_tax_office')); ?>" />
             </p>
-            <p class="form-row form-row-wide" data-ff-show="kurumsal">
-                <label>
-                    <input type="checkbox" name="ff_efatura_mukellefi" value="yes" <?php checked('yes', $checkout->get_value('ff_efatura_mukellefi')); ?> />
-                    <?php esc_html_e('Alıcı e-Fatura mükellefidir (EFATURA olarak kes)', 'finansfatura-woo'); ?>
-                </label>
-            </p>
         </div>
         <?php
     }
@@ -104,11 +101,10 @@ class FF_Checkout_Fields
         }
         $type = isset($_POST['ff_recipient_type']) ? sanitize_text_field(wp_unslash($_POST['ff_recipient_type'])) : 'bireysel';
         FF_Order_Meta::bulk_set($order, [
-            FF_Order_Meta::RECIPIENT_TYPE    => $type === 'kurumsal' ? 'kurumsal' : 'bireysel',
-            FF_Order_Meta::TCKN              => preg_replace('/\D+/', '', (string) ($_POST['ff_tckn'] ?? '')),
-            FF_Order_Meta::VKN               => preg_replace('/\D+/', '', (string) ($_POST['ff_vkn'] ?? '')),
-            FF_Order_Meta::TAX_OFFICE        => sanitize_text_field((string) ($_POST['ff_tax_office'] ?? '')),
-            FF_Order_Meta::EFATURA_MUKELLEFI => !empty($_POST['ff_efatura_mukellefi']) ? 'yes' : 'no',
+            FF_Order_Meta::RECIPIENT_TYPE => $type === 'kurumsal' ? 'kurumsal' : 'bireysel',
+            FF_Order_Meta::TCKN           => preg_replace('/\D+/', '', (string) ($_POST['ff_tckn'] ?? '')),
+            FF_Order_Meta::VKN            => preg_replace('/\D+/', '', (string) ($_POST['ff_vkn'] ?? '')),
+            FF_Order_Meta::TAX_OFFICE     => sanitize_text_field((string) ($_POST['ff_tax_office'] ?? '')),
         ]);
         $order->save();
     }

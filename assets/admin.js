@@ -5,14 +5,14 @@
         var $box = $('.ff-meta-box');
         if (!$box.length) return;
 
-        $('#ff-manual-issue').on('click', function () {
+        $box.on('click', '[data-ff-action]', function () {
             var $btn = $(this);
-            var $out = $('#ff-manual-issue-result');
+            var $out = $box.find('.ff-result');
             $btn.prop('disabled', true);
-            $out.text(FFAdmin.i18n.issuing);
+            $out.text(FFAdmin.i18n.working);
 
             $.post(FFAdmin.ajaxUrl, {
-                action: 'ff_manual_issue',
+                action: $btn.data('ff-action'),
                 nonce: FFAdmin.nonce,
                 order_id: $box.data('order-id')
             }).done(function (resp) {
