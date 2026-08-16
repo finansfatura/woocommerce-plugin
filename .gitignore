@@ -2,6 +2,9 @@
 # zip and merchants cannot run composer on shared hosting, so a repo download
 # has to be ready to activate. Dev tooling (phpunit and friends) is not — it
 # lands in vendor/ too, hence the whitelist rather than a plain "vendor/".
+#
+# Consequence: `composer install` (with dev) rewrites the committed autoload
+# files. Run `composer run ship` before committing to put them back.
 /vendor/*
 !/vendor/autoload.php
 !/vendor/composer/

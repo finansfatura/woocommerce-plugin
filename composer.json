@@ -11,7 +11,8 @@
         "phpunit/phpunit": "^9.5"
     },
     "scripts": {
-        "test": "phpunit"
+        "test": "phpunit",
+        "ship": "composer install --no-dev --optimize-autoloader"
     },
     "autoload-dev": {
         "psr-4": {
