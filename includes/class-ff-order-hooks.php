@@ -146,6 +146,14 @@ class FF_Order_Hooks
         }
 
         $txn = (string) ($resp['transaction_id'] ?? '');
+        // Satis id'siz bir 2xx beklenmiyor, ama gelirse fatura adimi satissiz
+        // kesime kayardi — API artik onu reddediyor, SDK ise istisna atiyor.
+        // Burada WP_Error'a cevirmek hatayi normal retry/hata yoluna sokar.
+        if ($txn === '') {
+            $err = new WP_Error('ff_no_transaction_id', __('Satış oluşturuldu ama id dönmedi.', 'finansfatura-woo'));
+            self::record_error($order, $err, __('Finansfatura satış aktarımı başarısız: %s', 'finansfatura-woo'));
+            return $err;
+        }
         FF_Order_Meta::set($order, FF_Order_Meta::TRANSACTION_ID, $txn);
         FF_Order_Meta::set($order, FF_Order_Meta::LAST_ERROR, '');
         $order->save();
