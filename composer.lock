@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "d08a5d6a01f33d9b3b30c1c46a36419a",
+    "content-hash": "10fe865629b0e00f5ace389b304f9d31",
     "packages": [
         {
             "name": "finansfatura/finansfatura",
-            "version": "v2.0.0",
+            "version": "v3.0.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/finansfatura/ff-php.git",
-                "reference": "bdb7b674c377f5b23ce5578d27cb2aced11f9b78"
+                "reference": "df70952557daaf08eb6af2daa28977c726757d12"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/finansfatura/ff-php/zipball/bdb7b674c377f5b23ce5578d27cb2aced11f9b78",
-                "reference": "bdb7b674c377f5b23ce5578d27cb2aced11f9b78",
+                "url": "https://api.github.com/repos/finansfatura/ff-php/zipball/df70952557daaf08eb6af2daa28977c726757d12",
+                "reference": "df70952557daaf08eb6af2daa28977c726757d12",
                 "shasum": ""
             },
             "require": {
@@ -58,7 +58,7 @@
                 "issues": "https://github.com/finansfatura/ff-php/issues",
                 "source": "https://github.com/finansfatura/ff-php"
             },
-            "time": "2026-08-16T13:05:14+00:00"
+            "time": "2026-08-27T15:38:44+00:00"
         }
     ],
     "packages-dev": [

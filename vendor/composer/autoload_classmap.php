@@ -7,7 +7,4 @@ $baseDir = dirname($vendorDir);
 
 return array(
     'Composer\\InstalledVersions' => $vendorDir . '/composer/InstalledVersions.php',
-    'Finansfatura\\Client' => $vendorDir . '/finansfatura/finansfatura/src/Client.php',
-    'Finansfatura\\OAuth' => $vendorDir . '/finansfatura/finansfatura/src/OAuth.php',
-    'Finansfatura\\Payload' => $vendorDir . '/finansfatura/finansfatura/src/Payload.php',
 );
