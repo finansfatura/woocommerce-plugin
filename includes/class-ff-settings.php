@@ -105,7 +105,7 @@ class FF_Settings
         <div class="wrap">
             <h1><?php esc_html_e('Finansfatura — WooCommerce ayarları', 'finansfatura-woo'); ?></h1>
             <p class="description">
-                <?php esc_html_e('Siparişler önce satış olarak aktarılır, fatura o satışın üzerine kesilir. Böylece fatura kesilemese bile satış ciroda, cari hesapta ve stokta yerini alır.', 'finansfatura-woo'); ?>
+                <?php esc_html_e('Siparişler önce satış olarak aktarılır, fatura o satışın üzerine kesilir. Böylece fatura kesilemese bile satış ciroda ve stokta yerini alır.', 'finansfatura-woo'); ?>
             </p>
 
             <form action="options.php" method="post">

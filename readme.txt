@@ -14,13 +14,13 @@ WooCommerce siparişlerinizi önce Finansfatura satışına çevirir, ardından 
 
 Eklenti siparişi iki adımda işler:
 
-1. **Satış** — ödeme alındığında sipariş Finansfatura'ya satış olarak aktarılır. Ciroya, cari hesaba ve stoğa oradan girer; fatura kesilemese bile satış kaybolmaz.
+1. **Satış** — ödeme alındığında sipariş Finansfatura'ya satış olarak aktarılır. Ciroya ve stoğa oradan girer; fatura kesilemese bile satış kaybolmaz. Fatura alıcısı (unvan/ad soyad, VKN/TCKN, vergi dairesi, adres, e-posta, telefon) satışın üzerine yazılır — ayrıca cari kartı açılmaz.
 2. **Fatura** — belge o satışın üzerine kesilir. Sipariş "tamamlandı" olunca otomatik, ya da sipariş ekranındaki **Fatura Kes** düğmesiyle. Düğme de adımı atlamaz: satış yoksa önce onu oluşturur, sonra faturayı keser.
 
 Belge her zaman e-Arşiv olarak gönderilir; alıcının VKN/TCKN'si GİB'de e-Fatura mükellefi çıkarsa sunucu belgeyi otomatik e-Faturaya yükseltir — müşteriye checkout'ta sorulmaz.
 
 = Öne çıkanlar =
-* Bireysel / Kurumsal alıcı seçimi + TCKN/VKN + vergi dairesi alanları
+* Bireysel / Kurumsal alıcı seçimi + TCKN/VKN + vergi dairesi alanları; hepsi satışın fatura alıcısına yazılır
 * Ödeme alınınca otomatik satış aktarımı
 * Sipariş tamamlanınca otomatik fatura, iadede otomatik IADE faturası
 * Manuel "Fatura Kes", "Satışı aktar" ve "Durumu yenile" düğmeleri

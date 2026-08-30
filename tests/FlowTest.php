@@ -87,8 +87,8 @@ class FlowTest extends TestCase
         $result = FF_Order_Hooks::issue_invoice($order, null);
 
         self::assertInstanceOf(WP_Error::class, $result);
-        // Faturayı satışsız kesmek, satışsız bir belge bırakır: ciroya,
-        // cariye ve stoğa hiç girmez.
+        // Faturayı satışsız kesmek, satışsız bir belge bırakır: ciroya ve
+        // stoğa hiç girmez.
         self::assertSame([], FF_Api_Client::calls_to('issue'));
         self::assertSame('sunucu hatası', FF_Order_Meta::get($order, FF_Order_Meta::LAST_ERROR));
     }
