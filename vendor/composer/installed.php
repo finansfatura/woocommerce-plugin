@@ -3,7 +3,7 @@
         'name' => 'finansfatura/woocommerce-plugin',
         'pretty_version' => 'dev-master',
         'version' => 'dev-master',
-        'reference' => '4707960847b29ed13d44856be1eb0f9acdbf4a4e',
+        'reference' => '848b7fa093b3d3128e82c04ff0ef589729ae4fc6',
         'type' => 'wordpress-plugin',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -22,7 +22,7 @@
         'finansfatura/woocommerce-plugin' => array(
             'pretty_version' => 'dev-master',
             'version' => 'dev-master',
-            'reference' => '4707960847b29ed13d44856be1eb0f9acdbf4a4e',
+            'reference' => '848b7fa093b3d3128e82c04ff0ef589729ae4fc6',
             'type' => 'wordpress-plugin',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

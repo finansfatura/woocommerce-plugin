@@ -93,7 +93,7 @@ class FF_Api_Client
     private function call(callable $fn)
     {
         if ($this->client === null) {
-            return $this->init_error ?? new WP_Error('ff_not_configured', __('Finansfatura bağlantısı ayarlı değil.', 'finansfatura-woo'));
+            return $this->init_error ?? new WP_Error('ff_not_configured', __('Finansfatura bağlantısı ayarlı değil.', 'finansfatura-for-woocommerce'));
         }
         try {
             return $fn($this->client);
@@ -131,7 +131,7 @@ class FF_Api_Client
             ? ['accessToken' => FF_OAuth::access_token()]
             : ['apiKey' => trim(FF_Settings::get('api_key'))];
         if (current($auth) === '') {
-            throw new \RuntimeException(__('Finansfatura API anahtarı girilmedi.', 'finansfatura-woo'));
+            throw new \RuntimeException(esc_html__('Finansfatura API anahtarı girilmedi.', 'finansfatura-for-woocommerce'));
         }
 
         return new Client($auth + [
@@ -158,7 +158,7 @@ class FF_Api_Client
             ]);
             if (is_wp_error($resp)) {
                 // ProviderException is the package's retryable transport error.
-                throw new \Finansfatura\ProviderException(0, null, $resp->get_error_message());
+                throw new \Finansfatura\ProviderException(0, null, esc_html($resp->get_error_message()));
             }
             return [
                 'status' => (int) wp_remote_retrieve_response_code($resp),

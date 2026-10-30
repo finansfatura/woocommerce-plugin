@@ -126,7 +126,7 @@ class FF_Invoice_Mapper
             'invoiceTypeCode'     => $refund ? 'IADE' : 'SATIS',
             'note'                => sprintf(
                 /* translators: %1$s = store name, %2$s = order number */
-                __('%1$s — Sipariş #%2$s', 'finansfatura-woo'),
+                __('%1$s — Sipariş #%2$s', 'finansfatura-for-woocommerce'),
                 get_bloginfo('name'),
                 (string) $order->get_order_number()
             ),
@@ -158,7 +158,7 @@ class FF_Invoice_Mapper
         $net   = round($gross - $tax, 2);
 
         return [
-            'title'      => __('İade', 'finansfatura-woo'),
+            'title'      => __('İade', 'finansfatura-for-woocommerce'),
             'qty'        => 1,
             'unit_price' => $net,
             'unit_code'  => 'C62',

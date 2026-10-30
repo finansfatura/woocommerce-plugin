@@ -55,9 +55,9 @@ class FF_Order_Hooks
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce'   => wp_create_nonce('ff_admin'),
             'i18n'    => [
-                'working' => __('İşleniyor…', 'finansfatura-woo'),
-                'failed'  => __('İşlem başarısız.', 'finansfatura-woo'),
-                'success' => __('Tamam.', 'finansfatura-woo'),
+                'working' => __('İşleniyor…', 'finansfatura-for-woocommerce'),
+                'failed'  => __('İşlem başarısız.', 'finansfatura-for-woocommerce'),
+                'success' => __('Tamam.', 'finansfatura-for-woocommerce'),
             ],
         ]);
     }
@@ -141,7 +141,8 @@ class FF_Order_Hooks
         ]);
 
         if (is_wp_error($resp)) {
-            self::record_error($order, $resp, __('Finansfatura satış aktarımı başarısız: %s', 'finansfatura-woo'));
+            /* translators: %s: error message returned by the Finansfatura API */
+            self::record_error($order, $resp, __('Finansfatura satış aktarımı başarısız: %s', 'finansfatura-for-woocommerce'));
             return $resp;
         }
 
@@ -150,8 +151,9 @@ class FF_Order_Hooks
         // kesime kayardi — API artik onu reddediyor, SDK ise istisna atiyor.
         // Burada WP_Error'a cevirmek hatayi normal retry/hata yoluna sokar.
         if ($txn === '') {
-            $err = new WP_Error('ff_no_transaction_id', __('Satış oluşturuldu ama id dönmedi.', 'finansfatura-woo'));
-            self::record_error($order, $err, __('Finansfatura satış aktarımı başarısız: %s', 'finansfatura-woo'));
+            $err = new WP_Error('ff_no_transaction_id', __('Satış oluşturuldu ama id dönmedi.', 'finansfatura-for-woocommerce'));
+            /* translators: %s: error message returned by the Finansfatura API */
+            self::record_error($order, $err, __('Finansfatura satış aktarımı başarısız: %s', 'finansfatura-for-woocommerce'));
             return $err;
         }
         FF_Order_Meta::set($order, FF_Order_Meta::TRANSACTION_ID, $txn);
@@ -159,7 +161,7 @@ class FF_Order_Hooks
         $order->save();
 
         if (empty($resp['already_imported'])) {
-            $order->add_order_note(__('Finansfatura: satış aktarıldı.', 'finansfatura-woo'));
+            $order->add_order_note(__('Finansfatura: satış aktarıldı.', 'finansfatura-for-woocommerce'));
         }
         return $txn;
     }
@@ -197,7 +199,8 @@ class FF_Order_Hooks
         ]);
 
         if (is_wp_error($resp)) {
-            self::record_error($order, $resp, __('Finansfatura hatası: %s', 'finansfatura-woo'));
+            /* translators: %s: error message returned by the Finansfatura API */
+            self::record_error($order, $resp, __('Finansfatura hatası: %s', 'finansfatura-for-woocommerce'));
             self::maybe_retry($order, $refund, $resp);
             return $resp;
         }
@@ -215,7 +218,7 @@ class FF_Order_Hooks
 
         $order->add_order_note(sprintf(
             /* translators: 1: document type, 2: ETTN */
-            __('Finansfatura: %1$s kesildi (ETTN: %2$s)', 'finansfatura-woo'),
+            __('Finansfatura: %1$s kesildi (ETTN: %2$s)', 'finansfatura-for-woocommerce'),
             (string) $payload['document_type'],
             (string) ($resp['ettn'] ?? '—')
         ));
@@ -251,7 +254,7 @@ class FF_Order_Hooks
             $order->save();
             return $row;
         }
-        return new WP_Error('ff_not_found', __('Bu sipariş Finansfatura tarafında bulunamadı.', 'finansfatura-woo'));
+        return new WP_Error('ff_not_found', __('Bu sipariş Finansfatura tarafında bulunamadı.', 'finansfatura-for-woocommerce'));
     }
 
     private static function record_error(WC_Order $order, WP_Error $err, string $note_format): void
@@ -291,7 +294,7 @@ class FF_Order_Hooks
         foreach ($screens as $screen) {
             add_meta_box(
                 'ff_invoice_box',
-                __('Finansfatura', 'finansfatura-woo'),
+                __('Finansfatura', 'finansfatura-for-woocommerce'),
                 [__CLASS__, 'render_meta_box'],
                 $screen,
                 'side',
@@ -316,42 +319,42 @@ class FF_Order_Hooks
         ?>
         <div class="ff-meta-box" data-order-id="<?php echo esc_attr((string) $order_id); ?>">
             <p>
-                <strong><?php esc_html_e('Satış', 'finansfatura-woo'); ?>:</strong>
+                <strong><?php esc_html_e('Satış', 'finansfatura-for-woocommerce'); ?>:</strong>
                 <?php echo $txn !== ''
-                    ? esc_html__('aktarıldı', 'finansfatura-woo')
-                    : esc_html__('aktarılmadı', 'finansfatura-woo'); ?>
+                    ? esc_html__('aktarıldı', 'finansfatura-for-woocommerce')
+                    : esc_html__('aktarılmadı', 'finansfatura-for-woocommerce'); ?>
             </p>
             <?php if ($invoice_id !== ''): ?>
-                <p><strong><?php esc_html_e('Durum', 'finansfatura-woo'); ?>:</strong> <?php echo esc_html($status); ?></p>
+                <p><strong><?php esc_html_e('Durum', 'finansfatura-for-woocommerce'); ?>:</strong> <?php echo esc_html($status); ?></p>
                 <?php if ($number !== ''): ?>
-                    <p><strong><?php esc_html_e('Fatura no', 'finansfatura-woo'); ?>:</strong> <code><?php echo esc_html($number); ?></code></p>
+                    <p><strong><?php esc_html_e('Fatura no', 'finansfatura-for-woocommerce'); ?>:</strong> <code><?php echo esc_html($number); ?></code></p>
                 <?php endif; ?>
                 <p><strong>ETTN:</strong> <code><?php echo esc_html($ettn ?: '—'); ?></code></p>
                 <p>
                     <a class="button" href="<?php echo esc_url(self::build_download_url($invoice_id, 'pdf')); ?>">
-                        <?php esc_html_e('PDF indir', 'finansfatura-woo'); ?>
+                        <?php esc_html_e('PDF indir', 'finansfatura-for-woocommerce'); ?>
                     </a>
                     <a class="button" href="<?php echo esc_url(self::build_download_url($invoice_id, 'html')); ?>">
-                        <?php esc_html_e('HTML', 'finansfatura-woo'); ?>
+                        <?php esc_html_e('HTML', 'finansfatura-for-woocommerce'); ?>
                     </a>
                 </p>
             <?php else: ?>
-                <p><?php esc_html_e('Bu sipariş için henüz fatura kesilmedi.', 'finansfatura-woo'); ?></p>
+                <p><?php esc_html_e('Bu sipariş için henüz fatura kesilmedi.', 'finansfatura-for-woocommerce'); ?></p>
             <?php endif; ?>
             <?php if ($last_error !== ''): ?>
-                <p class="ff-error"><strong><?php esc_html_e('Son hata', 'finansfatura-woo'); ?>:</strong> <?php echo esc_html($last_error); ?></p>
+                <p class="ff-error"><strong><?php esc_html_e('Son hata', 'finansfatura-for-woocommerce'); ?>:</strong> <?php echo esc_html($last_error); ?></p>
             <?php endif; ?>
             <p>
                 <?php if ($txn === ''): ?>
                     <button type="button" class="button" data-ff-action="ff_sync_sale">
-                        <?php esc_html_e('Satışı aktar', 'finansfatura-woo'); ?>
+                        <?php esc_html_e('Satışı aktar', 'finansfatura-for-woocommerce'); ?>
                     </button>
                 <?php endif; ?>
                 <button type="button" class="button button-primary" data-ff-action="ff_manual_issue">
-                    <?php esc_html_e('Fatura Kes', 'finansfatura-woo'); ?>
+                    <?php esc_html_e('Fatura Kes', 'finansfatura-for-woocommerce'); ?>
                 </button>
                 <button type="button" class="button" data-ff-action="ff_refresh_status">
-                    <?php esc_html_e('Durumu yenile', 'finansfatura-woo'); ?>
+                    <?php esc_html_e('Durumu yenile', 'finansfatura-for-woocommerce'); ?>
                 </button>
             </p>
             <span class="ff-result"></span>
@@ -380,16 +383,16 @@ class FF_Order_Hooks
     public static function admin_post_download(): void
     {
         if (!current_user_can('manage_woocommerce')) {
-            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-woo'), '', ['response' => 403]);
+            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-for-woocommerce'), '', ['response' => 403]);
         }
         $invoice_id = isset($_GET['invoice_id']) ? sanitize_text_field(wp_unslash($_GET['invoice_id'])) : '';
         $format     = isset($_GET['format']) ? sanitize_key(wp_unslash($_GET['format'])) : 'pdf';
         $types      = ['pdf' => 'application/pdf', 'html' => 'text/html', 'xml' => 'application/xml'];
         if ($invoice_id === '' || !isset($types[$format])) {
-            wp_die(esc_html__('Geçersiz istek.', 'finansfatura-woo'), '', ['response' => 400]);
+            wp_die(esc_html__('Geçersiz istek.', 'finansfatura-for-woocommerce'), '', ['response' => 400]);
         }
         if (!check_admin_referer('ff_download_' . $invoice_id)) {
-            wp_die(esc_html__('Geçersiz nonce.', 'finansfatura-woo'), '', ['response' => 403]);
+            wp_die(esc_html__('Geçersiz nonce.', 'finansfatura-for-woocommerce'), '', ['response' => 403]);
         }
 
         $client = new FF_Api_Client();
@@ -402,7 +405,7 @@ class FF_Order_Hooks
         header('Content-Type: ' . $types[$format]);
         header('Content-Disposition: attachment; filename="' . $invoice_id . '.' . $format . '"');
         header('Content-Length: ' . strlen($body));
-        echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped — binary payload
+        echo $body; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- Binary invoice payload (PDF/XML/HTML download), escaping would corrupt it.
         exit;
     }
 
@@ -448,7 +451,7 @@ class FF_Order_Hooks
         if (!current_user_can('manage_woocommerce') || !check_ajax_referer('ff_admin', 'nonce', false)) {
             wp_send_json_error(['message' => 'forbidden'], 403);
         }
-        $order = wc_get_order((int) ($_POST['order_id'] ?? 0));
+        $order = wc_get_order(isset($_POST['order_id']) ? absint(wp_unslash($_POST['order_id'])) : 0);
         if (!$order instanceof WC_Order) {
             wp_send_json_error(['message' => 'order not found'], 404);
         }

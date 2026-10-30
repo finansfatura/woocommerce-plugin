@@ -26,6 +26,9 @@ class ComposerStaticInitd08a5d6a01f33d9b3b30c1c46a36419a
 
     public static $classMap = array (
         'Composer\\InstalledVersions' => __DIR__ . '/..' . '/composer/InstalledVersions.php',
+        'Finansfatura\\Client' => __DIR__ . '/..' . '/finansfatura/finansfatura/src/Client.php',
+        'Finansfatura\\OAuth' => __DIR__ . '/..' . '/finansfatura/finansfatura/src/OAuth.php',
+        'Finansfatura\\Payload' => __DIR__ . '/..' . '/finansfatura/finansfatura/src/Payload.php',
     );
 
     public static function getInitializer(ClassLoader $loader)

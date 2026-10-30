@@ -59,7 +59,7 @@ class FF_OAuth
     {
         $tokens = get_option(FF_TOKEN_OPTION_KEY, []);
         if (empty($tokens['refresh_token'])) {
-            throw new \RuntimeException(__('Finansfatura OAuth bağlantısı yok.', 'finansfatura-woo'));
+            throw new \RuntimeException(esc_html__('Finansfatura OAuth bağlantısı yok.', 'finansfatura-for-woocommerce'));
         }
         if (!empty($tokens['access_token']) && (int) ($tokens['expires_at'] ?? 0) - self::REFRESH_SKEW > time()) {
             return (string) $tokens['access_token'];
@@ -88,6 +88,7 @@ class FF_OAuth
         // callback, keyed by the state we get back.
         set_transient('ff_oauth_' . $state, $verifier, 10 * MINUTE_IN_SECONDS);
 
+        // phpcs:ignore WordPress.Security.SafeRedirect.wp_redirect_wp_redirect -- Intentional redirect to the external Finansfatura OAuth consent screen; the URL is built by the SDK from the configured base URL.
         wp_redirect($oauth->authorizeUrl(['codeChallenge' => $challenge, 'state' => $state]));
         exit;
     }
@@ -96,19 +97,21 @@ class FF_OAuth
     public static function callback(): void
     {
         if (!current_user_can('manage_woocommerce')) {
-            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-woo'), '', ['response' => 403]);
+            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-for-woocommerce'), '', ['response' => 403]);
         }
+        // phpcs:disable WordPress.Security.NonceVerification.Recommended -- OAuth redirect from the provider; the `state` parameter is the CSRF token and is checked against the transient below.
         $code  = isset($_GET['code']) ? sanitize_text_field(wp_unslash($_GET['code'])) : '';
         $state = isset($_GET['state']) ? sanitize_text_field(wp_unslash($_GET['state'])) : '';
         if ($code === '' || $state === '') {
-            $err = isset($_GET['error']) ? sanitize_text_field(wp_unslash($_GET['error'])) : __('Onay alınamadı.', 'finansfatura-woo');
+            $err = isset($_GET['error']) ? sanitize_text_field(wp_unslash($_GET['error'])) : __('Onay alınamadı.', 'finansfatura-for-woocommerce');
             self::back_with('error', $err);
         }
+        // phpcs:enable WordPress.Security.NonceVerification.Recommended
 
         $verifier = get_transient('ff_oauth_' . $state);
         delete_transient('ff_oauth_' . $state);
         if (!$verifier) {
-            self::back_with('error', __('Oturum eşleşmedi, tekrar deneyin.', 'finansfatura-woo'));
+            self::back_with('error', __('Oturum eşleşmedi, tekrar deneyin.', 'finansfatura-for-woocommerce'));
         }
 
         try {
@@ -144,7 +147,7 @@ class FF_OAuth
         $client_id     = FF_Settings::get('oauth_client_id');
         $client_secret = FF_Settings::get('oauth_client_secret');
         if ($client_id === '' || $client_secret === '') {
-            throw new \RuntimeException(__('OAuth client_id / client_secret girilmedi.', 'finansfatura-woo'));
+            throw new \RuntimeException(esc_html__('OAuth client_id / client_secret girilmedi.', 'finansfatura-for-woocommerce'));
         }
         return new OAuth([
             'clientId'     => $client_id,
@@ -169,7 +172,7 @@ class FF_OAuth
     private static function guard(string $action): void
     {
         if (!current_user_can('manage_woocommerce') || !check_admin_referer($action)) {
-            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-woo'), '', ['response' => 403]);
+            wp_die(esc_html__('Yetkisiz erişim.', 'finansfatura-for-woocommerce'), '', ['response' => 403]);
         }
     }
 

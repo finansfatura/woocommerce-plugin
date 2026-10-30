@@ -26,8 +26,9 @@ class FF_Logger
                 'error_message'   => (string) ($entry['error'] ?? ''),
             ]
         );
-        if (!empty($entry['error'])) {
-            error_log('[finansfatura-woo] ' . $entry['error']);
+        if (!empty($entry['error']) && defined('WP_DEBUG') && WP_DEBUG) {
+            // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- Debug-only mirror of the DB log row, enabled by WP_DEBUG.
+            error_log('[finansfatura-for-woocommerce] ' . $entry['error']);
         }
     }
 }

@@ -1,0 +1,10 @@
+# Files excluded from the WordPress.org release zip (see bin/build-zip.sh).
+.git
+.gitignore
+.distignore
+.phpunit.result.cache
+bin
+tests
+phpunit.xml.dist
+composer.lock
+*.zip

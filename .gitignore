@@ -11,3 +11,6 @@
 !/vendor/finansfatura/
 
 .phpunit.result.cache
+
+# Release zips built by bin/build-zip.sh
+/dist/
